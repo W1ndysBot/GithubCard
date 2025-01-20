@@ -3,6 +3,7 @@
 import logging
 import os
 import sys
+import re
 
 # 添加项目根目录到sys.path
 sys.path.append(
@@ -61,6 +62,33 @@ async def toggle_function_status(websocket, group_id, message_id, authorized):
         )
 
 
+# 获取github卡片
+async def get_github_card(websocket, group_id, message_id, raw_message):
+    try:
+        match = re.match(r"https://github.com/(.*)/(.*)", raw_message) or re.match(
+            r"(.*)/(.*)", raw_message
+        )
+        if match:
+            github_owner = match.group(1)
+            github_repo = match.group(2)
+            # opengraph
+            opengraph_img_url = (
+                f"https://opengraph.githubassets.com/1/{github_owner}/{github_repo}"
+            )
+            socialify_img_url = f"https://socialify.git.ci/{github_owner}/{github_repo}/image?description=1&forks=1&issues=1&language=1&name=1&owner=1&pulls=1&stargazers=1&theme=Light"
+            # 发送卡片
+            await send_group_msg(
+                websocket,
+                group_id,
+                f"[CQ:reply,id={message_id}][CQ:image,file={opengraph_img_url}][CQ:image,file={socialify_img_url}]",
+            )
+    except Exception as e:
+        logging.error(f"获取github卡片失败: {e}")
+        await send_group_msg(
+            websocket, group_id, "获取github卡片失败，错误信息：" + str(e)
+        )
+
+
 # 群消息处理函数
 async def handle_GithubCard_group_message(websocket, msg):
     # 确保数据目录存在
@@ -77,10 +105,12 @@ async def handle_GithubCard_group_message(websocket, msg):
         if raw_message == "gc":
             await toggle_function_status(websocket, group_id, message_id, authorized)
             return
+
         # 检查是否开启
         if load_function_status(group_id):
-            # 其他处理函数
-            pass
+            # 获取github卡片
+            await get_github_card(websocket, group_id, message_id, raw_message)
+
     except Exception as e:
         logging.error(f"处理GithubCard群消息失败: {e}")
         await send_group_msg(
