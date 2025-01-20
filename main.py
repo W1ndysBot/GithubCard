@@ -65,23 +65,24 @@ async def toggle_function_status(websocket, group_id, message_id, authorized):
 # 获取github卡片
 async def get_github_card(websocket, group_id, message_id, raw_message):
     try:
-        match = re.match(r"https://github.com/(.*)/(.*)", raw_message) or re.match(
-            r"(.*)/(.*)", raw_message
-        )
+        match = re.match(r"https://github.com/(.*)/(.*)", raw_message)
         if match:
+            logging.info(f"匹配到github卡片: {match.group(1)}/{match.group(2)}")
             github_owner = match.group(1)
-            github_repo = match.group(2)
+            github_repo = match.group(2).replace("#", "").replace("/", "")
+
             # opengraph
             opengraph_img_url = (
                 f"https://opengraph.githubassets.com/1/{github_owner}/{github_repo}"
             )
-            socialify_img_url = f"https://socialify.git.ci/{github_owner}/{github_repo}/image?description=1&forks=1&issues=1&language=1&name=1&owner=1&pulls=1&stargazers=1&theme=Light"
-            # 发送卡片
+
+            # 发送图片
             await send_group_msg(
                 websocket,
                 group_id,
-                f"[CQ:reply,id={message_id}][CQ:image,file={opengraph_img_url}][CQ:image,file={socialify_img_url}]",
+                f"[CQ:reply,id={message_id}][CQ:image,file={opengraph_img_url}]",
             )
+
     except Exception as e:
         logging.error(f"获取github卡片失败: {e}")
         await send_group_msg(
@@ -119,38 +120,3 @@ async def handle_GithubCard_group_message(websocket, msg):
             "处理GithubCard群消息失败，错误信息：" + str(e),
         )
         return
-
-
-# 群通知处理函数
-async def handle_GithubCard_group_notice(websocket, msg):
-    # 确保数据目录存在
-    os.makedirs(DATA_DIR, exist_ok=True)
-    try:
-        user_id = str(msg.get("user_id"))
-        group_id = str(msg.get("group_id"))
-        raw_message = str(msg.get("raw_message"))
-        role = str(msg.get("sender", {}).get("role"))
-        message_id = str(msg.get("message_id"))
-
-    except Exception as e:
-        logging.error(f"处理GithubCard群通知失败: {e}")
-        await send_group_msg(
-            websocket,
-            group_id,
-            "处理GithubCard群通知失败，错误信息：" + str(e),
-        )
-        return
-
-
-# 回应事件处理函数
-async def handle_GithubCard_response_message(websocket, message):
-    try:
-        msg = json.loads(message)
-
-        if msg.get("status") == "ok":
-            echo = msg.get("echo")
-
-            if echo and echo.startswith("xxx"):
-                pass
-    except Exception as e:
-        logging.error(f"处理GithubCard回应事件时发生错误: {e}")
